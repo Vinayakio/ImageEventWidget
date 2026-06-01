@@ -103,11 +103,15 @@ function buildDynamicBindingPathList(uiConfig: unknown): Array<{ key: string; to
 function buildEnvelope(
   existing: ImageWidgetEnvelope | undefined,
   uiConfig: ImageWidgetUIConfig,
+  width: number,
+  height: number,
 ): ImageWidgetEnvelope {
   return {
     _id: existing?._id ?? `iw_${Date.now()}`,
     type: 'ImageWidget',
     general: existing?.general ?? { title: '' },
+    width,
+    height,
     uiConfig,
     dynamicBindingPathList: buildDynamicBindingPathList(uiConfig),
   };
@@ -122,6 +126,8 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
+const OPERATOR_OPTIONS = ['==', '!=', '>', '<', '>=', '<='] as const;
+type Operator = typeof OPERATOR_OPTIONS[number];
 function pos(v: string): number {
   return Math.max(0, Number(v) || 0);
 }
@@ -175,27 +181,30 @@ export function ImageWidgetConfiguration(props: ImageWidgetConfigurationProps) {
   // State
   // -------------------------------------------------------------------------
   const [defaultImage, setDefaultImage] = useState<string>(
-    config?.uiConfig.defaultImage ?? '',
+    config?.uiConfig?.defaultImage ?? '',
   );
   const [defaultImageFiles, setDefaultImageFiles] = useState<UploadFile[]>(
-    config?.uiConfig.defaultImage ? [uploadFileFromUrl(config.uiConfig.defaultImage)] : [],
+    config?.uiConfig?.defaultImage ? [uploadFileFromUrl(config.uiConfig.defaultImage)] : [],
   );
   const [defaultWidth, setDefaultWidth] = useState<number>(
-    config?.uiConfig.defaultWidth ?? 0,
+    config?.width ?? 0,
   );
   const [defaultHeight, setDefaultHeight] = useState<number>(
-    config?.uiConfig.defaultHeight ?? 0,
+    config?.height ?? 0,
   );
   const [defaultLockAspect, setDefaultLockAspect] = useState(true);
   const [defaultAspectRatio, setDefaultAspectRatio] = useState<number | null>(null);
   const [linkEnabled, setLinkEnabled] = useState<boolean>(
-    config?.uiConfig.linkConfig.enabled ?? false,
+    config?.uiConfig?.linkConfig?.enabled ?? false,
   );
   const [linkUrl, setLinkUrl] = useState<string>(
-    config?.uiConfig.linkConfig.url ?? '',
+    config?.uiConfig?.linkConfig?.url ?? '',
   );
   const [events, setEvents] = useState<ImageEventConfig[]>(
-    config?.uiConfig.events ?? [],
+    config?.uiConfig?.events ?? [],
+  );
+  const [rules, setRules] = useState<ImageRuleConfig[]>(
+    config?.uiConfig?.rules ?? [],
   );
 
   // Accordion expand state
@@ -247,17 +256,17 @@ export function ImageWidgetConfiguration(props: ImageWidgetConfigurationProps) {
   // -------------------------------------------------------------------------
   useEffect(() => {
     if (config) {
-      const di = config.uiConfig.defaultImage ?? '';
+      const di = config.uiConfig?.defaultImage ?? '';
       setDefaultImage(di);
       setDefaultImageFiles(di ? [uploadFileFromUrl(di)] : []);
-      const dw = config.uiConfig.defaultWidth ?? 0;
-      const dh = config.uiConfig.defaultHeight ?? 0;
+      const dw = config.width ?? 0;
+      const dh = config.height ?? 0;
       setDefaultWidth(dw);
       setDefaultHeight(dh);
       setDefaultAspectRatio(dw > 0 && dh > 0 ? dw / dh : null);
-      setLinkEnabled(config.uiConfig.linkConfig.enabled ?? false);
-      setLinkUrl(config.uiConfig.linkConfig.url ?? '');
-      setEvents(config.uiConfig.events ?? []);
+      setLinkEnabled(config.uiConfig?.linkConfig?.enabled ?? false);
+      setLinkUrl(config.uiConfig?.linkConfig?.url ?? '');
+      setEvents(config.uiConfig?.events ?? []);
     }
   }, [config?._id]);
 
@@ -283,8 +292,6 @@ export function ImageWidgetConfiguration(props: ImageWidgetConfigurationProps) {
 
     const uiConfig: ImageWidgetUIConfig = {
       defaultImage:  resolved.defaultImage,
-      defaultWidth:  resolved.defaultWidth,
-      defaultHeight: resolved.defaultHeight,
       linkConfig: {
         enabled: resolved.linkEnabled,
         url: resolved.linkUrl,
@@ -292,13 +299,15 @@ export function ImageWidgetConfiguration(props: ImageWidgetConfigurationProps) {
       events: resolved.events,
       style: {
         card: {
-          wrapInCard: config?.uiConfig.style.card.wrapInCard ?? false,
-          bg: config?.uiConfig.style.card.bg ?? '',
+          wrapInCard: config?.uiConfig?.style?.card?.wrapInCard ?? false,
+          bg: config?.uiConfig?.style?.card?.bg ?? '',
         },
       },
     };
 
-    onChange(buildEnvelope(config, uiConfig));
+    const envelope = buildEnvelope(config, uiConfig, resolved.defaultWidth, resolved.defaultHeight);
+    console.log('[ImageWidgetConfiguration] envelope:', envelope);
+    onChange(envelope);
   }
 
   // -------------------------------------------------------------------------
